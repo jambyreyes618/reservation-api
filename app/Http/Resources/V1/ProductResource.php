@@ -22,7 +22,11 @@ class ProductResource extends JsonResource
             // The product's own fields, renamed to camelCase for the client
             'attributes' => [
                 'product' => $this->product,
-                'description' => $this->description,
+                // Shown on the detail page only: hidden on the list endpoints
+                'description' => $this->when(
+                    ! $request->routeIs(['products.index', 'users.products.index']),
+                    $this->description
+                ),
                 'status' => $this->status,
                 'createdAt' => $this->created_at,
                 'updatedAt' => $this->updated_at,
@@ -33,6 +37,10 @@ class ProductResource extends JsonResource
                     'data' => [
                         'type' => 'user',
                         'id' => $this->user_id,
+                    ],
+                    // Link to the author's own endpoint
+                    'links' => [
+                        'self' => route('authors.show', ['author' => $this->user_id]),
                     ],
                 ],
             ],
