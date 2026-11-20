@@ -2,34 +2,58 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Http\Filters\V1\ProductFilter;
 use App\Http\Resources\V1\ProductResource;
 use App\Models\Product;
+use Illuminate\Http\Request;
 
 class ProductController extends APIController
 {
     /**
      * GET /api/v1/products
+     * Returns a paginated list (15 per page). Each product is transformed by ProductResource.
      */
-    public function index()
+    public function index(ProductFilter $filters)
     {
-        // ?include=author: eager load the authors in one extra query
-        if ($this->include('author')) {
-            return ProductResource::collection(Product::with('author')->paginate());
-        }
-
-        return ProductResource::collection(Product::paginate());
+        // Apply the filters from the URL (?status=A, ?product=*x*, ?include=author, etc.)
+        return ProductResource::collection(
+            Product::filter($filters)->paginate()
+        );
     }
 
     /**
-     * GET /api/v1/products/{product}
+     * Store a newly created resource in storage.
+     */
+    public function store(Request $request)
+    {
+        //
+    }
+
+    /**
+     * Display the specified resource.
      */
     public function show(Product $product)
     {
-        // ?include=author: load the author of this product
         if ($this->include('author')) {
             return new ProductResource($product->load('author'));
         }
 
         return new ProductResource($product);
+    }
+
+    /**
+     * Update the specified resource in storage.
+     */
+    public function update(Request $request, Product $product)
+    {
+        //
+    }
+
+    /**
+     * Remove the specified resource from storage.
+     */
+    public function destroy(Product $product)
+    {
+        //
     }
 }
