@@ -44,6 +44,8 @@ class ProductResource extends JsonResource
                     ],
                 ],
             ],
+            // The author object, present only when requested with ?include=author
+            'includes' => new UserResource($this->whenLoaded('author')),
             // Link to this product
             'links' => [
                 'self' => route('products.show', ['product' => $this->id]),
