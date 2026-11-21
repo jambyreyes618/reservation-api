@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Filters\V1\ProductFilter;
+use App\Http\Requests\Api\V1\ReplaceProductRequest;
 use App\Http\Requests\Api\V1\StoreProductRequest;
 use App\Http\Resources\V1\ProductResource;
 use App\Models\Product;
@@ -53,5 +54,16 @@ class ProductController extends APIController
         $product->delete();
 
         return $this->ok('Product successfully deleted');
+    }
+
+    /**
+     * PUT /api/v1/products/{product}
+     * Replaces the whole product: every field must be sent (see ReplaceProductRequest).
+     */
+    public function replace(ReplaceProductRequest $request, Product $product)
+    {
+        $product->update($request->mappedAttributes());
+
+        return new ProductResource($product);
     }
 }
