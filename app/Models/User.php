@@ -3,30 +3,24 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
-use App\Http\Filters\V1\QueryFilter;
+use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use PHPOpenSourceSaver\JWTAuth\Contracts\JWTSubject;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use App\Http\Filters\V1\QueryFilter;
+use Illuminate\Database\Eloquent\Builder;
+use App\Permissions\V1\Abilities;
 
-#[Fillable(['name', 'email', 'password'])]
+#[Fillable(['name', 'email', 'password', 'is_manager'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable implements JWTSubject
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
+    /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
-
-    /**
-     * The products written by this user (one user has many products).
-     */
-    public function products(): HasMany
-    {
-        return $this->hasMany(Product::class);
-    }
 
     /**
      * Get the attributes that should be cast.
@@ -38,23 +32,36 @@ class User extends Authenticatable implements JWTSubject
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            // Returns true/false instead of 1/0
+            'is_manager' => 'boolean',
         ];
     }
 
     /**
-     * Get the identifier that will be stored in the subject claim of the JWT.
+     * The products written by this user (one user has many products).
      */
-    public function getJWTIdentifier(): mixed
+    public function products(): HasMany
+    {
+        return $this->hasMany(Product::class);
+    }
+
+    /**
+     * The value stored inside the token to identify the user (the user id).
+     */
+    public function getJWTIdentifier()
     {
         return $this->getKey();
     }
 
     /**
-     * Return a key value array, containing any custom claims to be added to the JWT.
+     * Extra data stored in the token payload: the user's abilities.
+     * They are written into the JWT every time the user logs in.
      */
-    public function getJWTCustomClaims(): array
+    public function getJWTCustomClaims()
     {
-        return [];
+        return [
+            'abilities' => Abilities::getAbilities($this),
+        ];
     }
 
     /**
@@ -63,5 +70,22 @@ class User extends Authenticatable implements JWTSubject
     public function scopeFilter(Builder $builder, QueryFilter $filters): Builder
     {
         return $filters->apply($builder);
+    }
+
+    /**
+     * Checks an ability stored in the current JWT, for example 'product:update'.
+     * Sanctum's own tokenCan() does not read JWT claims, so we implement it here
+     */
+    public function tokenCan(string $ability): bool
+    {
+        try {
+            // Read the "abilities" claim of the token sent with this request
+            $abilities = auth('api')->payload()->get('abilities') ?? [];
+        } catch (\Throwable $e) {
+            // No token, or an unreadable one: no abilities
+            return false;
+        }
+
+        return in_array($ability, $abilities, true);
     }
 }

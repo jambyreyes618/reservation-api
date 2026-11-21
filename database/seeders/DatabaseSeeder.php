@@ -3,15 +3,12 @@
 namespace Database\Seeders;
 
 use App\Models\User;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+// use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use App\Models\Product;
 
-
 class DatabaseSeeder extends Seeder
 {
-    use WithoutModelEvents;
-
     /**
      * Seed the application's database.
      */
@@ -20,14 +17,17 @@ class DatabaseSeeder extends Seeder
         // Create 10 fake users
         $users = User::factory(10)->create();
 
-
-
-        // Create 100 fake prducts and spread them across the users
+        // Create 100 fake products and spread them across those 10 users
         Product::factory(100)
             ->recycle($users)
             ->create();
 
+        // A manager account used to test the manager abilities
+        User::create([
+            'email' => 'manager@manager.com',
+            'password' => bcrypt('password'),
+            'name' => 'The Manager',
+            'is_manager' => true,
+        ]);
     }
-
-    
 }
