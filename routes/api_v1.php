@@ -1,8 +1,11 @@
 <?php
 
+use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\AuthorsController;
 use App\Http\Controllers\Api\V1\ProductController;
 use Illuminate\Support\Facades\Route;
+
+Route::post('login', [AuthController::class, 'login']);
 
 // GET /products (list), GET /products/{product} (one product), POST /products (create), and DELETE /products/{product} (delete)
 Route::apiResource('products', ProductController::class)->only(['index', 'show', 'store', 'destroy']);
