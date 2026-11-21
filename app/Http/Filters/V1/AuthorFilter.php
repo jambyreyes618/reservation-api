@@ -1,39 +1,55 @@
 <?php
 
-namespace App\Http\Controllers\Api\V1;
+namespace App\Http\Filters\V1;
 
-use App\Http\Filters\V1\AuthorFilter;
-use App\Http\Resources\V1\UserResource;
-use App\Models\User;
-
-/**
- * Read-only view of the users who have written products (the "authors").
- */
-class AuthorsController extends APIController
+class AuthorFilter extends QueryFilter
 {
-    /**
-     * GET /api/v1/authors
-     * Lists only users who own at least one product, 15 per page.
-     */
-    public function index(AuthorFilter $filters)
+    protected array $sortable = [
+        'name',
+        'email',
+        'isManager' => 'is_manager',
+        'createdAt' => 'created_at',
+        'updatedAt' => 'updated_at',
+    ];
+
+    public function name($value)
     {
-        // Authors only, with the filters and sorting from the URL applied
-        return UserResource::collection(
-            User::has('products')->filter($filters)->paginate()
-        );
+        $likeStr = str_replace('*', '%', $value);
+
+        return $this->builder->where('name', 'like', $likeStr);
     }
 
-    /**
-     * GET /api/v1/authors/{author}
-     * Returns one author (route model binding loads the User).
-     */
-    public function show(User $author)
+    public function email($value)
     {
-        // ?include=products: load this author's products
-        if ($this->include('products')) {
-            return new UserResource($author->load('products'));
+        $likeStr = str_replace('*', '%', $value);
+
+        return $this->builder->where('email', 'like', $likeStr);
+    }
+
+    public function isManager($value)
+    {
+        return $this->builder->whereIn('is_manager', explode(',', $value));
+    }
+
+    public function createdAt($value)
+    {
+        $dates = explode(',', $value);
+
+        if (count($dates) > 1) {
+            return $this->builder->whereBetween('created_at', $dates);
         }
 
-        return new UserResource($author);
+        return $this->builder->whereDate('created_at', $value);
+    }
+
+    public function updatedAt($value)
+    {
+        $dates = explode(',', $value);
+
+        if (count($dates) > 1) {
+            return $this->builder->whereBetween('updated_at', $dates);
+        }
+
+        return $this->builder->whereDate('updated_at', $value);
     }
 }
