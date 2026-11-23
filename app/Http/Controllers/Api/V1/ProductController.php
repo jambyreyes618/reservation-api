@@ -2,24 +2,35 @@
 
 namespace App\Http\Controllers\Api\V1;
 
-use App\Http\Controllers\Api\V1\ApiController;
-use App\Http\Filters\V1\ProductFilter;
-use App\Http\Requests\Api\V1\ReplaceProductRequest;
-use App\Http\Requests\Api\V1\StoreProductRequest;
-use App\Http\Requests\Api\V1\UpdateProductRequest;
-use App\Http\Resources\V1\ProductResource;
 use App\Models\Product;
-use Illuminate\Auth\Access\AuthorizationException;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
+use App\Http\Resources\V1\ProductResource;
+use App\Http\Filters\V1\ProductFilter;
+use App\Http\Requests\Api\V1\StoreProductRequest;
+use App\Http\Requests\Api\V1\ReplaceProductRequest;
+use App\Http\Requests\Api\V1\UpdateProductRequest;
 
-class ProductController extends ApiController
+/**
+ * @group Products
+ *
+ * Create, read, update and delete products.
+ */
+class ProductController extends APIController
 {
     /**
-     * GET /api/v1/products
-     * Lists products with optional filtering and pagination.
+     * List products
+     *
+     * Returns a paginated list of products. Supports filtering, sorting and includes.
+     *
+     * @queryParam status string Filter by status. Use a comma for several. Example: A,C
+     * @queryParam product string Filter by name. Use * as a wildcard. Example: *x*
+     * @queryParam createdAt string A date, or a range as from,to. Example: 2026-01-01,2026-12-31
+     * @queryParam sort string Sort by product, status, createdAt or updatedAt. Prefix with - for descending. Example: -createdAt
+     * @queryParam include string Include related data. Example: author
+     * @queryParam page integer The page number. Example: 1
      */
     public function index(ProductFilter $filters)
     {
+        // Apply the filters from the URL (?status=A, ?product=*x*, ?include=author)
         return ProductResource::collection(
             Product::filter($filters)->paginate()
         );
@@ -27,22 +38,23 @@ class ProductController extends ApiController
 
     /**
      * GET /api/v1/products/{product}
-     * Returns a single product.
+     * Returns one product. Laravel loads it from the URL (route model binding)
+     * and answers 404 by itself when it does not exist.
      */
-    public function show($product_id)
+    public function show(Product $product)
     {
-        try {
-            $product = Product::findOrFail($product_id);
-
-            return new ProductResource($product);
-        } catch (ModelNotFoundException $exception) {
-            return $this->error('Product cannot be found.', 404);
+        // ?include=author: load the author of this product
+        if ($this->include('author')) {
+            return new ProductResource($product->load('author'));
         }
+
+        return new ProductResource($product);
     }
 
     /**
-     * POST /api/v1/products
-     * Creates a product, but only if the policy allows this user to do so.
+     * Create a product
+     *
+     * Managers can assign any author. Regular users can only create products for themselves.
      */
     public function store(StoreProductRequest $request)
     {
@@ -57,22 +69,18 @@ class ProductController extends ApiController
     }
 
     /**
-     * PATCH /api/v1/products/{product}
-     * Updates a product if the policy allows it.
+     * DELETE /api/v1/products/{product}
+     * Deletes the product, but only if the policy allows it.
      */
-    public function update(UpdateProductRequest $request, $product_id)
+    public function destroy(Product $product)
     {
-        try {
-            $product = Product::findOrFail($product_id);
-            $this->authorize('update', $product);
-            $product->update($request->mappedAttributes());
+        if ($this->isAble('delete', $product)) {
+            $product->delete();
 
-            return new ProductResource($product);
-        } catch (ModelNotFoundException $exception) {
-            return $this->error('Product cannot be found.', 404);
-        } catch (AuthorizationException $exception) {
-            return $this->notAuthorized('You are not authorized to update that resource');
+            return $this->ok('Product successfully deleted');
         }
+
+        return $this->notAuthorized('You are not authorized to delete that resource');
     }
 
     /**
@@ -91,17 +99,18 @@ class ProductController extends ApiController
     }
 
     /**
-     * DELETE /api/v1/products/{product}
-     * Deletes the product, but only if the policy allows it.
+     * PATCH /api/v1/products/{product}
+     * Updates only the fields that were sent, but only if the policy allows it.
      */
-    public function destroy(Product $product)
+    public function update(UpdateProductRequest $request, Product $product)
     {
-        if ($this->isAble('delete', $product)) {
-            $product->delete();
+        // Ask ProductPolicy::update() (owner, or a user holding the broader ability)
+        if ($this->isAble('update', $product)) {
+            $product->update($request->mappedAttributes());
 
-            return $this->ok('Product successfully deleted');
+            return new ProductResource($product);
         }
 
-        return $this->notAuthorized('You are not authorized to delete that resource');
+        return $this->notAuthorized('You are not authorized to update that resource');
     }
 }

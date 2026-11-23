@@ -2,33 +2,30 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Http\Filters\V1\AuthorFilter;
 use App\Http\Resources\V1\UserResource;
 use App\Models\User;
 
 /**
- * Read-only view of the users who have written products (the "authors").
+ * @group Authors
+ *
+ * Read product authors.
  */
 class AuthorsController extends APIController
 {
-    /**
-     * GET /api/v1/authors
-     */
-    public function index()
+    public function index(AuthorFilter $filters)
     {
-        // ?include=products: load each author's products in one extra query
-        if ($this->include('products')) {
-            return UserResource::collection(User::has('products')->with('products')->paginate());
-        }
-
-        return UserResource::collection(User::has('products')->paginate());
+        return UserResource::collection(
+            User::select('users.*')
+                ->join('products', 'users.id', '=', 'products.user_id')
+                ->filter($filters)
+                ->distinct()
+                ->paginate()
+        );
     }
 
-    /**
-     * GET /api/v1/authors/{author}
-     */
     public function show(User $author)
     {
-        // ?include=products: load this author's products
         if ($this->include('products')) {
             return new UserResource($author->load('products'));
         }

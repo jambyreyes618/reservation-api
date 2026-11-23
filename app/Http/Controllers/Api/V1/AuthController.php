@@ -10,12 +10,23 @@ use App\Traits\ApiResponses;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 
+/**
+ * @group Authentication
+ *
+ * Register, log in, refresh and log out.
+ */
 class AuthController extends Controller
 {
     // Gives this controller the ok(), success() and error() response helpers
     use ApiResponses;
 
-    // User Registration: creates the account and logs the user in immediately
+    /**
+     * Register
+     *
+     * Creates the account and logs the user in immediately.
+     *
+     * @unauthenticated
+     */
     public function register(RegisterUserRequest $request)
     {
         // Create the user. The password is hashed (bcrypt) before it is stored.
@@ -31,13 +42,19 @@ class AuthController extends Controller
         return $this->ok('Registered successfully', $this->formatToken($token));
     }
 
-    // Login: checks the credentials and returns a token when they are correct
+    /**
+     * Log in
+     *
+     * Returns an access token. Send it as a Bearer token on every other request.
+     *
+     * @unauthenticated
+     */
     public function login(LoginUserRequest $request)
     {
         $credentials = $request->only('email', 'password');
 
         // attempt() returns false when the email or password is wrong
-        if (! $token = Auth::guard('api')->attempt($credentials)) {
+        if (!$token = Auth::guard('api')->attempt($credentials)) {
             return $this->error('Invalid credentials', 401);
         }
 
@@ -52,8 +69,8 @@ class AuthController extends Controller
 
     /**
      * This maps the raw token string to access_token, defines its authentication
-     * standard as a bearer token, and dynamically calculates its lifespan (expires_in)
-     * by fetching the API's configured Time-To-Live (TTL) in minutes and multiplying
+     * standard as a bearer token, and dynamically calculates its lifespan (expiration)
+     * by fetching the API's configured Time-To-Live (TTL) in minutes and multiplying it
      * by 60 to convert it into seconds. This structured format complies with standard
      * OAuth 2.0 specifications, allowing frontend applications or mobile clients to
      * easily read the token, know how to attach it to future API request headers, and
